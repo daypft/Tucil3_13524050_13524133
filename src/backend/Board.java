@@ -57,11 +57,6 @@ public class Board {
             if (nextTile.isLava()) {
                 return null;
             }
-
-            if (nextTile.isGoal()) {
-                return nextTile;
-            }
-
             temp = nextTile;
         }
         return temp;
@@ -92,6 +87,27 @@ public class Board {
             System.out.println("Order " + firstTargetOrder.order + ": (" + firstTargetOrder.row + ", " + firstTargetOrder.col + ")");
             firstTargetOrder = firstTargetOrder.nextOrder;
         }
+    }
+
+    public boolean isGoalReached(Tile currentTile) {
+        if (currentTile != goal) {
+            return false;
+        }
+
+        return hasPassedOrders();
+    }
+
+    public boolean hasPassedOrders() {
+        if (firstTargetOrder == null) {
+            return true;
+        }
+        
+        Tile cp = firstTargetOrder;
+        while (cp.nextOrder != null) {
+            cp = cp.nextOrder;
+        }
+    
+        return cp.hasBeenPassed;
     }
 }
 

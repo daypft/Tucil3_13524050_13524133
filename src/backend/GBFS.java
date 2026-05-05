@@ -39,7 +39,7 @@ public class GBFS extends Algorithm {
             Node current = queue.poll();
             iterations++;
 
-            if (current.tile == board.goal) {
+            if (board.isGoalReached(current.tile)) {
                 return new Result(true, current.path, current.cost, iterations);
             }
 
@@ -51,6 +51,10 @@ public class GBFS extends Algorithm {
                 Tile target = board.tileIfMove(current.tile, dir);
 
                 if (target != null && !visited.contains(target) && target.canEnter()) {
+                    if (target.order != -1) {
+                        target.hasBeenPassed = true;
+                    }
+
                     int moveCost = board.calcCost(current.tile, target, dir);
                     List<Board.Direction> nextPath = new ArrayList<>(current.path);
                     nextPath.add(dir);
