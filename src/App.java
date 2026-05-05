@@ -19,11 +19,15 @@ import javafx.stage.Stage;
 import javafx.util.Duration;
 import javafx.scene.text.Text;
 import javafx.scene.layout.StackPane;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.layout.HBox;
+import javafx.geometry.Pos;
 
 public class App extends Application {
 
     private int cellSize = 100;
-    private int size = 1000;
+    private int sceneWidth = 1280;
+    private int sceneHeight = 720;
 
     private Rectangle[][] cells;
     private Tile currentTile;
@@ -31,10 +35,12 @@ public class App extends Application {
 
     @Override
     public void start(Stage stage) {
-        Scene scene = new Scene(initScene(), size, size);
+        Scene scene = new Scene(initScene(), sceneWidth, sceneHeight);
 
         stage.setTitle("Tucil 3");
         stage.setScene(scene);
+        stage.setMinWidth(800);
+        stage.setMinHeight(450);
         stage.show();
     }
 
@@ -58,9 +64,16 @@ public class App extends Application {
             return borderPane;
         }
 
-        cellSize = Math.min(size / board.col, size / board.row);
+        int availableWidth = sceneWidth - 20;
+        int availableHeight = sceneHeight - 20 - 80;
+        cellSize = Math.max(20, Math.min(availableWidth / board.col, availableHeight / board.row));
+
         GridPane grid = createGrid(board);
-        borderPane.setCenter(grid);
+        ScrollPane scroll = new ScrollPane(grid);
+        scroll.setFitToWidth(true);
+        scroll.setFitToHeight(true);
+        scroll.setPannable(true);
+        borderPane.setCenter(scroll);
 
         Button startButton = new Button("Start");
         startButton.setOnAction(e -> {
@@ -69,7 +82,10 @@ public class App extends Application {
             animatePath(board, result);
         });
 
-        borderPane.setBottom(startButton);
+        HBox bottomBox = new HBox(startButton);
+        bottomBox.setPadding(new Insets(10));
+        bottomBox.setAlignment(Pos.CENTER);
+        borderPane.setBottom(bottomBox);
 
         return borderPane;
     }
