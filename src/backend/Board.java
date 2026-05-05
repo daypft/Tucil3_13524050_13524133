@@ -8,7 +8,14 @@ public class Board {
     public Tile goal;
     public int maxOrder;
     public Tile firstTargetOrder;
+    public Tile currentTile;
 
+    public enum Direction {
+        UP,
+        DOWN,
+        LEFT,
+        RIGHT
+    }
 
     public Board(int row, int col) {
         this.row = row;
@@ -35,6 +42,49 @@ public class Board {
             }
             System.out.println();
         }
+    }
+
+    public Tile tileIfMove(Tile startTile, Direction dir) {
+        Tile temp = startTile;
+
+        while (temp != null) {
+            Tile nextTile = nextTile(temp, dir);
+
+            if (nextTile == null || nextTile.isWall()) {
+                break;
+            }
+
+            if (nextTile.isLava()) {
+                return null;
+            }
+
+            if (nextTile.isGoal()) {
+                return nextTile;
+            }
+
+            temp = nextTile;
+        }
+        return temp;
+    }
+
+    public int calcCost(Tile startTile, Tile endTile, Direction dir) {
+        int cost = 0;
+        Tile temp = startTile;
+
+        while (temp != endTile) {
+            cost += temp.cost;
+            temp = nextTile(temp, dir);
+        }
+        return cost;
+    }
+
+    private Tile nextTile(Tile tile, Direction dir) {
+        return switch (dir) {
+            case UP -> tile.up;
+            case DOWN -> tile.down;
+            case LEFT -> tile.left;
+            case RIGHT -> tile.right;
+        };
     }
 
     public void printOrder(){

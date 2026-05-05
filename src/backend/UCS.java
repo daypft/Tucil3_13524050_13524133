@@ -2,7 +2,7 @@ package backend;
 
 import java.util.Collections;
 
-public class AStar extends Algorithm {
+public class UCS extends Algorithm {
 
     public Result solve(Board board) {
 
@@ -10,4 +10,5 @@ public class AStar extends Algorithm {
 
         return new Result(false, Collections.emptyList(), 0, 0);
     }
+    
 }

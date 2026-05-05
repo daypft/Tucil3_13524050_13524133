@@ -14,7 +14,7 @@ public class Tile {
     public int order = -1;
     public int cost;
     public boolean hasBeenPassed;
-    private Tile right, left, up, down;
+    public Tile right, left, up, down;
     public Tile previousOrder, nextOrder;
 
     public Tile(int row, int col, Type type) {
@@ -22,6 +22,13 @@ public class Tile {
         this.col = col;
         this.type = type;
         this.hasBeenPassed = false;
+    }
+
+    public Boolean canEnter() {
+        if (order != -1) {
+            return hasPassedPrevious();
+        }
+        return true;
     }
 
     public void setOrder(int order) {
@@ -57,7 +64,10 @@ public class Tile {
     }
 
     public boolean hasPassedPrevious() {
-        return previousOrder != null && previousOrder.hasBeenPassed;
+        if (order == 0 || order == -1) {
+            return true;
+        }
+        return previousOrder != null && previousOrder.hasPassedPrevious();
     }
 
 
