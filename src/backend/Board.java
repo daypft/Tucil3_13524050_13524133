@@ -50,7 +50,10 @@ public class Board {
         while (temp != null) {
             Tile nextTile = nextTile(temp, dir);
 
-            if (nextTile == null || nextTile.isWall()) {
+            if (nextTile == null) {
+                return null;
+            }
+            if (nextTile.isWall()) {
                 break;
             }
 
@@ -82,9 +85,10 @@ public class Board {
         };
     }
 
-    public void printOrder(){
+    public void printOrder() {
         while (firstTargetOrder != null) {
-            System.out.println("Order " + firstTargetOrder.order + ": (" + firstTargetOrder.row + ", " + firstTargetOrder.col + ")");
+            System.out.println("Order " + firstTargetOrder.order + ": (" + firstTargetOrder.row + ", "
+                    + firstTargetOrder.col + ")");
             firstTargetOrder = firstTargetOrder.nextOrder;
         }
     }
@@ -101,13 +105,12 @@ public class Board {
         if (firstTargetOrder == null) {
             return true;
         }
-        
+
         Tile cp = firstTargetOrder;
         while (cp.nextOrder != null) {
             cp = cp.nextOrder;
         }
-    
+
         return cp.hasBeenPassed;
     }
 }
-
