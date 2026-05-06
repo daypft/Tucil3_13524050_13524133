@@ -15,6 +15,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import javafx.scene.text.Text;
@@ -29,12 +30,17 @@ public class App extends Application {
     private int sceneWidth = 1280;
     private int sceneHeight = 720;
 
+    private Board board;
     private Rectangle[][] cells;
     private Tile currentTile;
     private Timeline activeTimeline;
+    private Stage primaryStage;
+    private BorderPane root;
+    private ScrollPane boardScroll;
 
     @Override
     public void start(Stage stage) {
+        primaryStage = stage;
         Scene scene = new Scene(initScene(), sceneWidth, sceneHeight);
 
         stage.setTitle("Tucil 3");
@@ -44,9 +50,8 @@ public class App extends Application {
         stage.show();
     }
 
-    private Board loadBoard() {
+    private Board loadBoard(String filePath) {
         Parser parser = new Parser();
-        String filePath = "data/1.txt";
         try {
             return parser.parseBoard(filePath);
         } catch (Exception e) {
@@ -56,51 +61,54 @@ public class App extends Application {
     }
 
     private BorderPane initScene() {
-        BorderPane borderPane = new BorderPane();
-        borderPane.setPadding(new Insets(10));
+        root = new BorderPane();
+        root.setPadding(new Insets(10));
 
-        Board board = loadBoard();
-        if (board == null) {
-            return borderPane;
-        }
-
-        int availableWidth = sceneWidth - 20;
-        int availableHeight = sceneHeight - 20 - 80;
-        cellSize = Math.max(20, Math.min(availableWidth / board.col, availableHeight / board.row));
-
-        GridPane grid = createGrid(board);
-        ScrollPane scroll = new ScrollPane(grid);
-        scroll.setFitToWidth(true);
-        scroll.setFitToHeight(true);
-        scroll.setPannable(true);
-        borderPane.setCenter(scroll);
+        boardScroll = new ScrollPane();
+        boardScroll.setFitToWidth(true);
+        boardScroll.setFitToHeight(true);
+        boardScroll.setPannable(true);
+        root.setCenter(boardScroll);
 
         Button startButton = new Button("Start");
         startButton.setOnAction(e -> {
+            if (board == null) {
+                return;
+            }
+
             Algorithm algorithm = new GBFS();
             Result result = algorithm.solve(board);
-            animatePath(board, result);
+            animatePath(result);
         });
 
-        HBox bottomBox = new HBox(startButton);
+        Button loadButton = new Button("Load");
+        loadButton.setOnAction(e -> configChoose());
+
+        HBox bottomBox = new HBox(10, loadButton, startButton);
         bottomBox.setPadding(new Insets(10));
         bottomBox.setAlignment(Pos.CENTER);
-        borderPane.setBottom(bottomBox);
+        root.setBottom(bottomBox);
 
-        return borderPane;
+        setBoard(loadBoard("data/1.txt"));
+
+        return root;
     }
 
     public static void main(String[] args) {
         launch(args);
     }
 
-    private void animatePath(Board board, Result result) {
+    private void animatePath(Result result) {
+        if (board == null) {
+            return;
+        }
+
         if (activeTimeline != null) {
             activeTimeline.stop();
         }
 
         currentTile = board.start;
-        renderBoard(board);
+        renderBoard();
 
         Timeline timeline = new Timeline();
         Tile animationTile = board.start;
@@ -118,7 +126,7 @@ public class App extends Application {
                 Tile destination = next;
                 timeline.getKeyFrames().add(new KeyFrame(Duration.millis(50L * step), e -> {
                     currentTile = destination;
-                    renderBoard(board);
+                    renderBoard();
                 }));
                 step++;
 
@@ -138,6 +146,43 @@ public class App extends Application {
 
         activeTimeline = timeline;
         timeline.play();
+    }
+
+    private void configChoose() {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Choose Config");
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Conf", "*.txt"));
+        chooser.setInitialDirectory(new java.io.File("data").getAbsoluteFile());
+
+        java.io.File selectedFile = chooser.showOpenDialog(primaryStage);
+        if (selectedFile == null) {
+            return;
+        }
+
+        setBoard(loadBoard(selectedFile.getAbsolutePath()));
+    }
+
+    private void setBoard(Board newBoard) {
+        if (newBoard == null) {
+            return;
+        }
+
+        if (activeTimeline != null) {
+            activeTimeline.stop();
+            activeTimeline = null;
+        }
+
+        board = newBoard;
+        currentTile = board.start;
+        updateCellSize();
+        boardScroll.setContent(createGrid(board));
+        renderBoard();
+    }
+
+    private void updateCellSize() {
+        int availableWidth = sceneWidth - 20;
+        int availableHeight = sceneHeight - 20 - 80;
+        cellSize = Math.max(20, Math.min(availableWidth / board.col, availableHeight / board.row));
     }
 
     private Tile nextTile(Tile tile, Direction direction) {
@@ -173,7 +218,11 @@ public class App extends Application {
         return grid;
     }
 
-    private void renderBoard(Board board) {
+    private void renderBoard() {
+        if (board == null || cells == null) {
+            return;
+        }
+
         for (int r = 0; r < board.row; r++) {
             for (int c = 0; c < board.col; c++) {
                 Tile tile = board.tiles[r][c];
