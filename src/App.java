@@ -1,16 +1,22 @@
 import backend.Algorithm;
+import backend.AStar;
 import backend.Board;
 import backend.Board.Direction;
 import backend.GBFS;
 import backend.Parser;
 import backend.Result;
 import backend.Tile;
+import backend.UCS;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.SplitPane;
+import javafx.scene.control.TextArea;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.paint.Color;
@@ -37,6 +43,8 @@ public class App extends Application {
     private Stage primaryStage;
     private BorderPane root;
     private ScrollPane boardScroll;
+    private ComboBox<String> algoPick;
+    private TextArea output;
 
     @Override
     public void start(Stage stage) {
@@ -68,7 +76,15 @@ public class App extends Application {
         boardScroll.setFitToWidth(true);
         boardScroll.setFitToHeight(true);
         boardScroll.setPannable(true);
-        root.setCenter(boardScroll);
+        output = new TextArea();
+        output.setEditable(false);
+        output.setWrapText(true);
+
+        SplitPane splitPane = new SplitPane();
+        splitPane.setOrientation(Orientation.HORIZONTAL);
+        splitPane.getItems().addAll(boardScroll, output);
+        splitPane.setDividerPositions(0.67);
+        root.setCenter(splitPane);
 
         Button startButton = new Button("Start");
         startButton.setOnAction(e -> {
@@ -76,15 +92,20 @@ public class App extends Application {
                 return;
             }
 
-            Algorithm algorithm = new GBFS();
+            Algorithm algorithm = newAlgo();
             Result result = algorithm.solve(board);
+            output.setText(renderLog(result, algorithm.getLog()));
             animatePath(result);
         });
+
+        algoPick = new ComboBox<>();
+        algoPick.getItems().addAll("GBFS", "UCS", "A*");
+        algoPick.setValue("GBFS");
 
         Button loadButton = new Button("Load");
         loadButton.setOnAction(e -> configChoose());
 
-        HBox bottomBox = new HBox(10, loadButton, startButton);
+        HBox bottomBox = new HBox(10, algoPick, loadButton, startButton);
         bottomBox.setPadding(new Insets(10));
         bottomBox.setAlignment(Pos.CENTER);
         root.setBottom(bottomBox);
@@ -176,7 +197,31 @@ public class App extends Application {
         currentTile = board.start;
         updateCellSize();
         boardScroll.setContent(createGrid(board));
+        output.clear();
         renderBoard();
+    }
+
+    private Algorithm newAlgo() {
+        String selected = algoPick.getValue();
+        if ("UCS".equals(selected)) {
+            return new UCS();
+        }
+        if ("A*".equals(selected)) {
+            return new AStar();
+        }
+        return new GBFS();
+    }
+
+    private String renderLog(Result result, String iterationLog) {
+        StringBuilder res = new StringBuilder();
+        res.append("Found: ").append(result.found).append(System.lineSeparator());
+        res.append("Moves: ").append(result.moves).append(System.lineSeparator());
+        res.append("Total Cost: ").append(result.totalCost).append(System.lineSeparator());
+        res.append("Iterations: ").append(result.iterations).append(System.lineSeparator());
+        res.append(System.lineSeparator());
+        res.append("Iteration Log").append(System.lineSeparator());
+        res.append(iterationLog.isBlank() ? "-" : iterationLog);
+        return res.toString();
     }
 
     private void updateCellSize() {

@@ -32,6 +32,7 @@ public class AStar extends Algorithm {
     }
 
     public Result solve(Board board) {
+            clearLog();
             PriorityQueue<Node> queue = new PriorityQueue<>();
             Set<Tile> visited = new HashSet<>();
             int iterations = 0;
@@ -62,7 +63,7 @@ public class AStar extends Algorithm {
                         List<Board.Direction> nextPath = new ArrayList<>(current.path);
                         nextPath.add(dir);
                         queue.add(new Node(target, nextPath, current.cost + moveCost, calculateDistanceToGoal(board.goal, target)));
-                    System.out.println("Itteration: " + iterations + ", Current Tile: (" + target.row + ", " + target.col + "), Cost: " + (current.cost + moveCost) + ", Path" + nextPath);
+                        log("Itteration: " + iterations + ", Current Tile: (" + target.row + ", " + target.col + "), Cost: " + (current.cost + moveCost) + ", Path" + nextPath);
                     }
                 }
             }
