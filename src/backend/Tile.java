@@ -25,7 +25,7 @@ public class Tile {
     }
 
     public Boolean canEnter() {
-        if (order != -1) {
+        if (order != -1 && !hasBeenPassed) {
             return hasPassedPrevious();
         }
         return true;
@@ -67,7 +67,7 @@ public class Tile {
         if (order == 0 || order == -1) {
             return true;
         }
-        return previousOrder != null && previousOrder.hasPassedPrevious();
+        return previousOrder != null && previousOrder.hasBeenPassed;
     }
 
 

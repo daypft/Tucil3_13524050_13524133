@@ -27,6 +27,69 @@ public class Board {
         return tiles[row][col];
     }
 
+    public Board copy() {
+        Board copy = new Board(row, col);
+
+        copy.maxOrder = maxOrder;
+
+        for (int r = 0; r < row; r++) {
+            for (int c = 0; c < col; c++) {
+                Tile oldTile = tiles[r][c];
+                Tile newTile = new Tile(r, c, oldTile.type);
+
+                newTile.order = oldTile.order;
+                newTile.cost = oldTile.cost;
+                newTile.hasBeenPassed = oldTile.hasBeenPassed;
+
+                copy.tiles[r][c] = newTile;
+
+                if (oldTile == start) {
+                    copy.start = newTile;
+                }
+                if (oldTile == goal) {
+                    copy.goal = newTile;
+                }
+                if (oldTile == currentTile) {
+                    copy.currentTile = newTile;
+                }
+            }
+        }
+
+        for (int r = 0; r < row; r++) {
+            for (int c = 0; c < col; c++) {
+                Tile tile = copy.tiles[r][c];
+                tile.setUp(r > 0 ? copy.tiles[r - 1][c] : null);
+                tile.setDown(r + 1 < row ? copy.tiles[r + 1][c] : null);
+                tile.setLeft(c > 0 ? copy.tiles[r][c - 1] : null);
+                tile.setRight(c + 1 < col ? copy.tiles[r][c + 1] : null);
+            }
+        }
+
+        Tile[] orderedTiles = new Tile[maxOrder + 1];
+        for (int r = 0; r < row; r++) {
+            for (int c = 0; c < col; c++) {
+                Tile tile = copy.tiles[r][c];
+                if (tile.order >= 0 && tile.order < orderedTiles.length) {
+                    orderedTiles[tile.order] = tile;
+                }
+            }
+        }
+
+        copy.orderTiles = orderedTiles;
+        copy.firstTargetOrder = orderedTiles.length > 0 ? orderedTiles[0] : null;
+
+        for (int i = 0; i < orderedTiles.length; i++) {
+            if (orderedTiles[i] == null) {
+                continue;
+            }
+
+            orderedTiles[i].setPreviousOrder(i > 0 ? orderedTiles[i - 1] : null);
+            orderedTiles[i].setNextOrder(i + 1 < orderedTiles.length ? orderedTiles[i + 1] : null);
+        }
+
+        return copy;
+    }
+
     public void printBoard() {
         for (int r = 0; r < row; r++) {
             for (int c = 0; c < col; c++) {
@@ -60,6 +123,12 @@ public class Board {
             if (nextTile.isLava()) {
                 return null;
             }
+            if (!nextTile.canEnter()) {
+                return null;
+            }
+            if (nextTile.order != -1) {
+                nextTile.hasBeenPassed = true;
+            }
             temp = nextTile;
         }
         return temp;
@@ -70,8 +139,8 @@ public class Board {
         Tile temp = startTile;
 
         while (temp != endTile) {
-            cost += temp.cost;
             temp = nextTile(temp, dir);
+            cost += temp.cost;
         }
         return cost;
     }
@@ -102,15 +171,31 @@ public class Board {
     }
 
     public boolean hasPassedOrders() {
-        if (firstTargetOrder == null) {
-            return true;
+        for (int r = 0; r < row; r++) {
+            for (int c = 0; c < col; c++) {
+                Tile tile = tiles[r][c];
+                if (tile.order != -1 && !tile.hasBeenPassed) {
+                    return false;
+                }
+            }
         }
 
-        Tile cp = firstTargetOrder;
-        while (cp.nextOrder != null) {
-            cp = cp.nextOrder;
+        return true;
+    }
+
+    public String stateKey(Tile currentTile) {
+        StringBuilder key = new StringBuilder();
+        key.append(currentTile.row).append(',').append(currentTile.col).append(':');
+
+        for (int r = 0; r < row; r++) {
+            for (int c = 0; c < col; c++) {
+                Tile tile = tiles[r][c];
+                if (tile.order != -1) {
+                    key.append(tile.order).append(tile.hasBeenPassed ? '1' : '0');
+                }
+            }
         }
 
-        return cp.hasBeenPassed;
+        return key.toString();
     }
 }

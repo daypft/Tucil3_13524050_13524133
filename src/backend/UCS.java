@@ -12,11 +12,13 @@ public class UCS extends Algorithm {
         Tile tile;
         List<Board.Direction> path;
         int cost;
+        Board BoardCon;
 
-        Node(Tile tile, List<Board.Direction> path, int cost) {
+        Node(Tile tile, List<Board.Direction> path, int cost, Board BoardCon) {
             this.tile = tile;
             this.path = path;
             this.cost = cost;
+            this.BoardCon = BoardCon;
         }
 
         @Override
@@ -28,37 +30,38 @@ public class UCS extends Algorithm {
     public Result solve(Board board) {
         clearLog();
         PriorityQueue<Node> queue = new PriorityQueue<>();
-        Set<Tile> visited = new HashSet<>();
+        Set<String> visited = new HashSet<>();
         int iterations = 0;
+        Board startBoard = board.copy();
 
-        queue.add(new Node(board.start, new ArrayList<>(), 0));
+        queue.add(new Node(startBoard.start, new ArrayList<>(), 0, startBoard));
 
         while (!queue.isEmpty()) {
             Node current = queue.poll();
             iterations++;
 
-            if (board.isGoalReached(current.tile)) {
+            if (current.BoardCon.isGoalReached(current.tile)) {
                 return new Result(true, current.path, current.cost, iterations);
             }
 
-            if (visited.contains(current.tile)) {
+            String currentKey = current.BoardCon.stateKey(current.tile);
+            if (visited.contains(currentKey)) {
                 continue;
             }
-            visited.add(current.tile);
+            visited.add(currentKey);
 
             for (Board.Direction dir : Board.Direction.values()) {
-                Tile target = board.tileIfMove(current.tile, dir);
+                Board nextBoard = current.BoardCon.copy();
+                Tile nextStart = nextBoard.getTile(current.tile.row, current.tile.col);
+                Tile target = nextBoard.tileIfMove(nextStart, dir);
 
-                if (target != null && !visited.contains(target) && target.canEnter()) {
-                    if (target.order != -1) {
-                        target.hasBeenPassed = true;
-                    }
+                if (target != null && !visited.contains(nextBoard.stateKey(target))) {
 
-                    int moveCost = board.calcCost(current.tile, target, dir);
+                    int moveCost = nextBoard.calcCost(nextStart, target, dir);
                     List<Board.Direction> nextPath = new ArrayList<>(current.path);
                     nextPath.add(dir);
 
-                    queue.add(new Node(target, nextPath, current.cost + moveCost));
+                    queue.add(new Node(target, nextPath, current.cost + moveCost, nextBoard));
                     log("Itteration: " + iterations + ", Current Tile: (" + target.row + ", " + target.col + "), Cost: " + (current.cost + moveCost) + ", Path" + nextPath);
                 }
             }

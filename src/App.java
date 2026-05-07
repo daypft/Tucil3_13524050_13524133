@@ -153,15 +153,7 @@ public class App extends Application {
 
                 animationTile = destination;
 
-                if (destination.isGoal()) {
-                    break;
-                }
-
                 next = nextTile(destination, move);
-            }
-
-            if (animationTile != null && animationTile.isGoal()) {
-                break;
             }
         }
 
