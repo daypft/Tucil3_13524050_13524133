@@ -12,6 +12,7 @@ public class Board {
     public int maxOrder;
     public Tile firstTargetOrder;
     public Tile currentTile;
+    public boolean considerOrder = true;
 
     public enum Direction {
         UP,
@@ -34,6 +35,7 @@ public class Board {
         Board copy = new Board(row, col);
 
         copy.maxOrder = maxOrder;
+        copy.considerOrder = considerOrder;
 
         for (int r = 0; r < row; r++) {
             for (int c = 0; c < col; c++) {
@@ -181,6 +183,10 @@ public class Board {
             return false;
         }
 
+        if (!considerOrder) {
+            return true;
+        }
+
         return hasPassedOrders();
     }
 
@@ -198,6 +204,10 @@ public class Board {
     }
 
     public StateKey stateKey(Tile currentTile) {
+        if (!considerOrder) {
+            return new StateKey(currentTile.row, currentTile.col, -1);
+        }
+
         return new StateKey(currentTile.row, currentTile.col, lastPassedOrder());
     }
 

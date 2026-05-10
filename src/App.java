@@ -24,6 +24,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.TextArea;
@@ -54,6 +55,7 @@ public class App extends Application {
     private ComboBox<String> algoPick;
     private TextArea output;
     private ComboBox<Heuristic> heuristicPick;
+    private CheckBox considerOrder;
     private List<Tile> playbackTiles = new ArrayList<>();
     private int currentStep;
 
@@ -120,6 +122,10 @@ public class App extends Application {
         heuristicPick.setVisible(false);
         heuristicPick.setPrefWidth(100);
 
+        considerOrder = new CheckBox("Consider Order?");
+        considerOrder.setSelected(true);
+        considerOrder.setOnAction(e -> updateOrderSetting());
+
         Button loadButton = new Button("Load");
         loadButton.setOnAction(e -> configChoose());
 
@@ -149,8 +155,8 @@ public class App extends Application {
         Button resetButton = new Button("Reset");
         resetButton.setOnAction(e -> reset());
 
-        HBox bottomBox = new HBox(10, algoPick, heuristicPick, loadButton, startButton, saveButton, playButton, pauseButton,
-            prevButton, nextButton, resetButton);
+        HBox bottomBox = new HBox(10, algoPick, heuristicPick, considerOrder, loadButton, startButton, saveButton,
+            playButton, pauseButton, prevButton, nextButton, resetButton);
         bottomBox.setPadding(new Insets(10));
         bottomBox.setAlignment(Pos.CENTER);
         root.setBottom(bottomBox);
@@ -167,6 +173,12 @@ public class App extends Application {
     private void updateHeuristic() {
         boolean isAStar = "A*".equals(algoPick.getValue());
         heuristicPick.setVisible(isAStar);
+    }
+
+    private void updateOrderSetting() {
+        if (board != null) {
+            board.considerOrder = considerOrder.isSelected();
+        }
     }
 
     private void animatePath(Result result) {
@@ -318,6 +330,7 @@ public class App extends Application {
         }
 
         board = newBoard;
+        board.considerOrder = considerOrder == null || considerOrder.isSelected();
         currentTile = board.start;
         updateCellSize();
         boardScroll.setContent(createGrid(board));
