@@ -2,8 +2,11 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 import backend.AStar;
+import backend.AStar.Heuristic;
 import backend.Algorithm;
 import backend.Board;
 import backend.Board.Direction;
@@ -50,6 +53,9 @@ public class App extends Application {
     private ScrollPane boardScroll;
     private ComboBox<String> algoPick;
     private TextArea output;
+    private ComboBox<Heuristic> heuristicPick;
+    private List<Tile> playbackTiles = new ArrayList<>();
+    private int currentStep;
 
     @Override
     public void start(Stage stage) {
@@ -106,6 +112,13 @@ public class App extends Application {
         algoPick = new ComboBox<>();
         algoPick.getItems().addAll("GBFS", "UCS", "A*");
         algoPick.setValue("GBFS");
+        algoPick.setOnAction(e -> updateHeuristic());
+
+        heuristicPick = new ComboBox<>();
+        heuristicPick.getItems().addAll(Heuristic.values());
+        heuristicPick.setValue(Heuristic.Manhattan);
+        heuristicPick.setVisible(false);
+        heuristicPick.setPrefWidth(100);
 
         Button loadButton = new Button("Load");
         loadButton.setOnAction(e -> configChoose());
@@ -113,7 +126,31 @@ public class App extends Application {
         Button saveButton = new Button("Save");
         saveButton.setOnAction(e -> saveOutput());
 
-        HBox bottomBox = new HBox(10, algoPick, loadButton, startButton, saveButton);
+        Button playButton = new Button("Play");
+        playButton.setOnAction(e -> {
+            if (activeTimeline != null) {
+                activeTimeline.play();
+            }
+        });
+
+        Button pauseButton = new Button("Pause");
+        pauseButton.setOnAction(e -> {
+            if (activeTimeline != null) {
+                activeTimeline.pause();
+            }
+        });
+
+        Button nextButton = new Button("Next");
+        nextButton.setOnAction(e -> next());
+
+        Button prevButton = new Button("Prev");
+        prevButton.setOnAction(e -> prev());
+
+        Button resetButton = new Button("Reset");
+        resetButton.setOnAction(e -> reset());
+
+        HBox bottomBox = new HBox(10, algoPick, heuristicPick, loadButton, startButton, saveButton, playButton, pauseButton,
+            prevButton, nextButton, resetButton);
         bottomBox.setPadding(new Insets(10));
         bottomBox.setAlignment(Pos.CENTER);
         root.setBottom(bottomBox);
@@ -127,6 +164,11 @@ public class App extends Application {
         launch(args);
     }
 
+    private void updateHeuristic() {
+        boolean isAStar = "A*".equals(algoPick.getValue());
+        heuristicPick.setVisible(isAStar);
+    }
+
     private void animatePath(Result result) {
         if (board == null) {
             return;
@@ -136,37 +178,93 @@ public class App extends Application {
             activeTimeline.stop();
         }
 
-        currentTile = board.start;
-        renderBoard();
+        playbackTiles.clear();
+        playbackTiles.add(board.start);
+        currentStep = 0;
 
-        Timeline timeline = new Timeline();
         Tile animationTile = board.start;
-        int step = 1;
 
         for (Direction move : result.moves) {
+            Tile destination = animationTile;
             Tile next = nextTile(animationTile, move);
 
             while (next != null && !next.isWall()) {
                 if (next.isLava()) {
-                    next = null;
+                    destination = null;
                     break;
                 }
 
-                Tile destination = next;
-                timeline.getKeyFrames().add(new KeyFrame(Duration.millis(50L * step), e -> {
-                    currentTile = destination;
-                    renderBoard();
-                }));
-                step++;
-
-                animationTile = destination;
-
+                destination = next;
                 next = nextTile(destination, move);
+            }
+
+            if (destination != null && destination != animationTile) {
+                playbackTiles.add(destination);
+                animationTile = destination;
             }
         }
 
+        currentTile = board.start;
+        renderBoard();
+
+        Timeline timeline = new Timeline();
+        for (int i = 1; i < playbackTiles.size(); i++) {
+            final int stepIndex = i;
+            timeline.getKeyFrames().add(new KeyFrame(Duration.millis(50L * i), e -> {
+                currentStep = stepIndex;
+                currentTile = playbackTiles.get(stepIndex);
+                renderBoard();
+            }));
+        }
+
         activeTimeline = timeline;
-        timeline.play();
+        activeTimeline.playFromStart();
+    }
+
+    private void next() {
+        if (playbackTiles.isEmpty()) {
+            return;
+        }
+
+        if (activeTimeline != null) {
+            activeTimeline.pause();
+        }
+
+        if (currentStep < playbackTiles.size() - 1) {
+            currentStep++;
+            currentTile = playbackTiles.get(currentStep);
+            renderBoard();
+        }
+    }
+
+    private void prev() {
+        if (playbackTiles.isEmpty()) {
+            return;
+        }
+
+        if (activeTimeline != null) {
+            activeTimeline.pause();
+        }
+
+        if (currentStep > 0) {
+            currentStep--;
+            currentTile = playbackTiles.get(currentStep);
+            renderBoard();
+        }
+    }
+
+    private void reset() {
+        if (playbackTiles.isEmpty()) {
+            return;
+        }
+
+        if (activeTimeline != null) {
+            activeTimeline.stop();
+        }
+
+        currentStep = 0;
+        currentTile = playbackTiles.get(0);
+        renderBoard();
     }
 
     private void configChoose() {
@@ -239,7 +337,9 @@ public class App extends Application {
             return new UCS();
         }
         if ("A*".equals(selected)) {
-            return new AStar();
+            AStar aStar = new AStar();
+            aStar.setHeuristic(heuristicPick.getValue());
+            return aStar;
         }
         return new GBFS();
     }
