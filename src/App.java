@@ -99,7 +99,7 @@ public class App extends Application {
         splitPane.setDividerPositions(0.67);
         root.setCenter(splitPane);
 
-        Button startButton = new Button("Start");
+        Button startButton = new Button("Solve");
         startButton.setOnAction(e -> {
             if (board == null) {
                 return;
@@ -113,7 +113,7 @@ public class App extends Application {
 
         algoPick = new ComboBox<>();
         algoPick.getItems().addAll("GBFS", "UCS", "A*");
-        algoPick.setValue("GBFS");
+        algoPick.setValue("UCS");
         algoPick.setOnAction(e -> updateHeuristic());
 
         heuristicPick = new ComboBox<>();
@@ -171,8 +171,9 @@ public class App extends Application {
     }
 
     private void updateHeuristic() {
-        boolean isAStar = "A*".equals(algoPick.getValue());
-        heuristicPick.setVisible(isAStar);
+        String sel = algoPick.getValue();
+        boolean show = "A*".equals(sel) || "GBFS".equals(sel);
+        heuristicPick.setVisible(show);
     }
 
     private void updateOrderSetting() {
@@ -353,6 +354,11 @@ public class App extends Application {
             AStar aStar = new AStar();
             aStar.setHeuristic(heuristicPick.getValue());
             return aStar;
+        }
+        if ("GBFS".equals(selected)) {
+            GBFS g = new GBFS();
+            g.setHeuristic(heuristicPick.getValue());
+            return g;
         }
         return new GBFS();
     }

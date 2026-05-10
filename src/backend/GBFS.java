@@ -7,7 +7,14 @@ import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Set;
 
+import backend.AStar.Heuristic;
+
 public class GBFS extends Algorithm {
+    private Heuristic heuristic = Heuristic.Manhattan;
+
+    public void setHeuristic(Heuristic h) {
+        this.heuristic = h;
+    }
 
     private class Node implements Comparable<Node> {
         Tile tile;
@@ -75,7 +82,25 @@ public class GBFS extends Algorithm {
         return finishRun(new Result(false, Collections.emptyList(), 0, iterations), startTime);
     }
 
-    public int calculateDistanceToGoal(Tile goal, Tile curr) {
+    private int calculateDistanceToGoal(Tile goal, Tile curr) {
+        return switch (heuristic) {
+            case Manhattan -> Manhattan(goal, curr);
+            case Euclidean -> Euclidean(goal, curr);
+            case Chebyshev -> Chebyshev(goal, curr);
+        };
+    }
+
+    private int Manhattan(Tile goal, Tile curr) {
         return Math.abs(goal.row - curr.row) + Math.abs(goal.col - curr.col);
+    }
+
+    private int Euclidean(Tile goal, Tile curr) {
+        int dr = goal.row - curr.row;
+        int dc = goal.col - curr.col;
+        return (int) Math.sqrt(dr * dr + dc * dc);
+    }
+
+    private int Chebyshev(Tile goal, Tile curr) {
+        return Math.max(Math.abs(goal.row - curr.row), Math.abs(goal.col - curr.col));
     }
 }
