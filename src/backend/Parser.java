@@ -193,7 +193,7 @@ public class Parser {
         try {
             Parser parser = new Parser();
             Board board = parser.parseBoard("../data/1.txt");
-            board.printBoard();
+            System.out.print(board.printBoard());
             board.printOrder();
         } catch (Exception e) {
             System.out.println("Error");

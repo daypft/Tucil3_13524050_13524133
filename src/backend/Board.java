@@ -93,21 +93,32 @@ public class Board {
         return copy;
     }
 
-    public void printBoard() {
+    public String printBoard() {
+        StringBuilder builder = new StringBuilder();
+        Tile playerTile = currentTile != null ? currentTile : start;
+
         for (int r = 0; r < row; r++) {
             for (int c = 0; c < col; c++) {
                 Tile tile = tiles[r][c];
-                char symbol = switch (tile.type) {
-                    case P -> 'P';
-                    case X -> 'X';
-                    case L -> 'L';
-                    case O -> 'O';
-                    case Z -> 'Z';
-                };
-                System.out.print(symbol);
+
+                if (tile == playerTile) {
+                    builder.append('Z');
+                } else if (tile.order >= 0) {
+                    builder.append(tile.order);
+                } else if (tile.isWall()) {
+                    builder.append('X');
+                } else if (tile.isLava()) {
+                    builder.append('L');
+                } else if (tile.isGoal()) {
+                    builder.append('O');
+                } else {
+                    builder.append('*');
+                }
             }
-            System.out.println();
+            builder.append(System.lineSeparator());
         }
+
+        return builder.toString();
     }
 
     public Tile tileIfMove(Tile startTile, Direction dir) {

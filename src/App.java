@@ -1,3 +1,8 @@
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 import backend.AStar;
 import backend.Algorithm;
 import backend.Board;
@@ -94,7 +99,7 @@ public class App extends Application {
 
             Algorithm algorithm = newAlgo();
             Result result = algorithm.solve(board);
-            output.setText(renderLog(result, algorithm.getLog()));
+            output.setText(renderLog(result, algorithm.getLog(), algorithm.getOutput(), algorithm.getTime()));
             animatePath(result);
         });
 
@@ -105,7 +110,10 @@ public class App extends Application {
         Button loadButton = new Button("Load");
         loadButton.setOnAction(e -> configChoose());
 
-        HBox bottomBox = new HBox(10, algoPick, loadButton, startButton);
+        Button saveButton = new Button("Save");
+        saveButton.setOnAction(e -> saveOutput());
+
+        HBox bottomBox = new HBox(10, algoPick, loadButton, startButton, saveButton);
         bottomBox.setPadding(new Insets(10));
         bottomBox.setAlignment(Pos.CENTER);
         root.setBottom(bottomBox);
@@ -175,6 +183,32 @@ public class App extends Application {
         setBoard(loadBoard(selectedFile.getAbsolutePath()));
     }
 
+    private void saveOutput() {
+        if (output == null || output.getText().isBlank()) {
+            return;
+        }
+
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Save Output");
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Text File", "*.txt"));
+
+        java.io.File selectedFile = chooser.showSaveDialog(primaryStage);
+        if (selectedFile == null) {
+            return;
+        }
+
+        try {
+            String fileName = selectedFile.getName().toLowerCase();
+            Path target = selectedFile.toPath();
+            if (!fileName.endsWith(".txt")) {
+                target = Path.of(selectedFile.getAbsolutePath() + ".txt");
+            }
+            Files.writeString(target, output.getText(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            printAnythingInOutput(e.getMessage());
+        }
+    }
+
     private void setBoard(Board newBoard) {
         if (newBoard == null) {
             return;
@@ -210,15 +244,20 @@ public class App extends Application {
         return new GBFS();
     }
 
-    private String renderLog(Result result, String iterationLog) {
+    private String renderLog(Result result, String iterationLog, String boardOutput, long timeMillis) {
         StringBuilder res = new StringBuilder();
         res.append("Found: ").append(result.found).append(System.lineSeparator());
         res.append("Moves: ").append(result.moves).append(System.lineSeparator());
         res.append("Total Cost: ").append(result.totalCost).append(System.lineSeparator());
         res.append("Iterations: ").append(result.iterations).append(System.lineSeparator());
+        res.append("Time: ").append(timeMillis).append(" ms").append(System.lineSeparator());
         res.append(System.lineSeparator());
         res.append("Iteration Log").append(System.lineSeparator());
         res.append(iterationLog.isBlank() ? "-" : iterationLog);
+        res.append(System.lineSeparator());
+        res.append(System.lineSeparator());
+        res.append("Iteration").append(System.lineSeparator());
+        res.append(boardOutput.isBlank() ? "-" : boardOutput);
         return res.toString();
     }
 

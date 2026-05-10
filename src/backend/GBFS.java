@@ -31,7 +31,8 @@ public class GBFS extends Algorithm {
     }
 
     public Result solve(Board board) {
-        clearLog();
+        long startTime = clearLog();
+        clearOutput();
         PriorityQueue<Node> queue = new PriorityQueue<>();
         Set<Board.StateKey> visited = new HashSet<>();
         int iterations = 0;
@@ -43,8 +44,10 @@ public class GBFS extends Algorithm {
             Node current = queue.poll();
             iterations++;
 
+            printBoard("Iteration: " + iterations, current.BoardCon, current.tile);
+
             if (current.BoardCon.isGoalReached(current.tile)) {
-                return new Result(true, current.path, current.cost, iterations);
+                return finishRun(new Result(true, current.path, current.cost, iterations), startTime);
             }
 
             Board.StateKey currentKey = current.BoardCon.stateKey(current.tile);
@@ -69,7 +72,7 @@ public class GBFS extends Algorithm {
             }
         }
 
-        return new Result(false, Collections.emptyList(), 0, iterations);
+        return finishRun(new Result(false, Collections.emptyList(), 0, iterations), startTime);
     }
 
     public int calculateDistanceToGoal(Tile goal, Tile curr) {
