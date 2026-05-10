@@ -1,73 +1,441 @@
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+
+import backend.AStar;
+import backend.AStar.Heuristic;
+import backend.Algorithm;
 import backend.Board;
+import backend.Board.Direction;
+import backend.GBFS;
 import backend.Parser;
+import backend.Result;
 import backend.Tile;
+import backend.UCS;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.SplitPane;
+import javafx.scene.control.TextArea;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.text.Text;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 
 public class App extends Application {
 
     private int cellSize = 100;
-    private int size = 1000;
+    private int sceneWidth = 1280;
+    private int sceneHeight = 720;
+
+    private Board board;
+    private Rectangle[][] cells;
+    private Tile currentTile;
+    private Timeline activeTimeline;
+    private Stage primaryStage;
+    private BorderPane root;
+    private ScrollPane boardScroll;
+    private ComboBox<String> algoPick;
+    private TextArea output;
+    private ComboBox<Heuristic> heuristicPick;
+    private CheckBox considerOrder;
+    private List<Tile> playbackTiles = new ArrayList<>();
+    private int currentStep;
 
     @Override
     public void start(Stage stage) {
-        Scene scene = new Scene(initScene(), size, size);
+        primaryStage = stage;
+        Scene scene = new Scene(initScene(), sceneWidth, sceneHeight);
+
         stage.setTitle("Tucil 3");
         stage.setScene(scene);
+        stage.setMinWidth(800);
+        stage.setMinHeight(450);
         stage.show();
     }
-    
-    private Board loadBoard() {
+
+    private Board loadBoard(String filePath) {
         Parser parser = new Parser();
-        String filePath = "data/1.txt";
         try {
             return parser.parseBoard(filePath);
         } catch (Exception e) {
-            e.printStackTrace();
+            printAnythingInOutput(e.getMessage());
             return null;
         }
     }
 
     private BorderPane initScene() {
-        BorderPane borderPane = new BorderPane();
-        borderPane.setPadding(new Insets(10));
+        root = new BorderPane();
+        root.setPadding(new Insets(10));
 
-        Board board = loadBoard();
-        if (board == null) {
-            return borderPane;
-        }
+        boardScroll = new ScrollPane();
+        boardScroll.setFitToWidth(true);
+        boardScroll.setFitToHeight(true);
+        boardScroll.setPannable(true);
+        output = new TextArea();
+        output.setEditable(false);
+        output.setWrapText(true);
 
-        cellSize = Math.min(size / board.col, size / board.row);
-        GridPane grid = createGrid(board);
-        borderPane.setCenter(grid);
+        SplitPane splitPane = new SplitPane();
+        splitPane.setOrientation(Orientation.HORIZONTAL);
+        splitPane.getItems().addAll(boardScroll, output);
+        splitPane.setDividerPositions(0.67);
+        root.setCenter(splitPane);
 
-        VBox orderBox = new VBox(10);
+        Button startButton = new Button("Solve");
+        startButton.setOnAction(e -> {
+            if (board == null) {
+                return;
+            }
 
-        return borderPane;
+            Algorithm algorithm = newAlgo();
+            Result result = algorithm.solve(board);
+            output.setText(renderLog(result, algorithm.getLog(), algorithm.getOutput(), algorithm.getTime()));
+            animatePath(result);
+        });
+
+        algoPick = new ComboBox<>();
+        algoPick.getItems().addAll("GBFS", "UCS", "A*");
+        algoPick.setValue("UCS");
+        algoPick.setOnAction(e -> updateHeuristic());
+
+        heuristicPick = new ComboBox<>();
+        heuristicPick.getItems().addAll(Heuristic.values());
+        heuristicPick.setValue(Heuristic.Manhattan);
+        heuristicPick.setVisible(false);
+        heuristicPick.setPrefWidth(100);
+
+        considerOrder = new CheckBox("Consider Order?");
+        considerOrder.setSelected(true);
+        considerOrder.setOnAction(e -> updateOrderSetting());
+
+        Button loadButton = new Button("Load");
+        loadButton.setOnAction(e -> configChoose());
+
+        Button saveButton = new Button("Save");
+        saveButton.setOnAction(e -> saveOutput());
+
+        Button playButton = new Button("Play");
+        playButton.setOnAction(e -> {
+            if (activeTimeline != null) {
+                activeTimeline.play();
+            }
+        });
+
+        Button pauseButton = new Button("Pause");
+        pauseButton.setOnAction(e -> {
+            if (activeTimeline != null) {
+                activeTimeline.pause();
+            }
+        });
+
+        Button nextButton = new Button("Next");
+        nextButton.setOnAction(e -> next());
+
+        Button prevButton = new Button("Prev");
+        prevButton.setOnAction(e -> prev());
+
+        Button resetButton = new Button("Reset");
+        resetButton.setOnAction(e -> reset());
+
+        HBox bottomBox = new HBox(10, algoPick, heuristicPick, considerOrder, loadButton, startButton, saveButton,
+            playButton, pauseButton, prevButton, nextButton, resetButton);
+        bottomBox.setPadding(new Insets(10));
+        bottomBox.setAlignment(Pos.CENTER);
+        root.setBottom(bottomBox);
+
+        setBoard(loadBoard("data/1.txt"));
+
+        return root;
     }
 
     public static void main(String[] args) {
         launch(args);
     }
 
+    private void updateHeuristic() {
+        String sel = algoPick.getValue();
+        boolean show = "A*".equals(sel) || "GBFS".equals(sel);
+        heuristicPick.setVisible(show);
+    }
+
+    private void updateOrderSetting() {
+        if (board != null) {
+            board.considerOrder = considerOrder.isSelected();
+        }
+    }
+
+    private void animatePath(Result result) {
+        if (board == null) {
+            return;
+        }
+
+        if (activeTimeline != null) {
+            activeTimeline.stop();
+        }
+
+        playbackTiles.clear();
+        playbackTiles.add(board.start);
+        currentStep = 0;
+
+        Tile animationTile = board.start;
+
+        for (Direction move : result.moves) {
+            Tile destination = animationTile;
+            Tile next = nextTile(animationTile, move);
+
+            while (next != null && !next.isWall()) {
+                if (next.isLava()) {
+                    destination = null;
+                    break;
+                }
+
+                destination = next;
+                next = nextTile(destination, move);
+            }
+
+            if (destination != null && destination != animationTile) {
+                playbackTiles.add(destination);
+                animationTile = destination;
+            }
+        }
+
+        currentTile = board.start;
+        renderBoard();
+
+        Timeline timeline = new Timeline();
+        for (int i = 1; i < playbackTiles.size(); i++) {
+            final int stepIndex = i;
+            timeline.getKeyFrames().add(new KeyFrame(Duration.millis(50L * i), e -> {
+                currentStep = stepIndex;
+                currentTile = playbackTiles.get(stepIndex);
+                renderBoard();
+            }));
+        }
+
+        activeTimeline = timeline;
+        activeTimeline.playFromStart();
+    }
+
+    private void next() {
+        if (playbackTiles.isEmpty()) {
+            return;
+        }
+
+        if (activeTimeline != null) {
+            activeTimeline.pause();
+        }
+
+        if (currentStep < playbackTiles.size() - 1) {
+            currentStep++;
+            currentTile = playbackTiles.get(currentStep);
+            renderBoard();
+        }
+    }
+
+    private void prev() {
+        if (playbackTiles.isEmpty()) {
+            return;
+        }
+
+        if (activeTimeline != null) {
+            activeTimeline.pause();
+        }
+
+        if (currentStep > 0) {
+            currentStep--;
+            currentTile = playbackTiles.get(currentStep);
+            renderBoard();
+        }
+    }
+
+    private void reset() {
+        if (playbackTiles.isEmpty()) {
+            return;
+        }
+
+        if (activeTimeline != null) {
+            activeTimeline.stop();
+        }
+
+        currentStep = 0;
+        currentTile = playbackTiles.get(0);
+        renderBoard();
+    }
+
+    private void configChoose() {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Choose Config");
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Conf", "*.txt"));
+        chooser.setInitialDirectory(new java.io.File("data").getAbsoluteFile());
+
+        java.io.File selectedFile = chooser.showOpenDialog(primaryStage);
+        if (selectedFile == null) {
+            return;
+        }
+
+        setBoard(loadBoard(selectedFile.getAbsolutePath()));
+    }
+
+    private void saveOutput() {
+        if (output == null || output.getText().isBlank()) {
+            return;
+        }
+
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Save Output");
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Text File", "*.txt"));
+
+        java.io.File selectedFile = chooser.showSaveDialog(primaryStage);
+        if (selectedFile == null) {
+            return;
+        }
+
+        try {
+            String fileName = selectedFile.getName().toLowerCase();
+            Path target = selectedFile.toPath();
+            if (!fileName.endsWith(".txt")) {
+                target = Path.of(selectedFile.getAbsolutePath() + ".txt");
+            }
+            Files.writeString(target, output.getText(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            printAnythingInOutput(e.getMessage());
+        }
+    }
+
+    private void setBoard(Board newBoard) {
+        if (newBoard == null) {
+            return;
+        }
+
+        if (activeTimeline != null) {
+            activeTimeline.stop();
+            activeTimeline = null;
+        }
+
+        board = newBoard;
+        board.considerOrder = considerOrder == null || considerOrder.isSelected();
+        currentTile = board.start;
+        updateCellSize();
+        boardScroll.setContent(createGrid(board));
+        output.clear();
+        renderBoard();
+    }
+
+    private void printAnythingInOutput(String message) {
+        if (output != null) {
+            output.setText(message);
+        }
+    }
+
+    private Algorithm newAlgo() {
+        String selected = algoPick.getValue();
+        if ("UCS".equals(selected)) {
+            return new UCS();
+        }
+        if ("A*".equals(selected)) {
+            AStar aStar = new AStar();
+            aStar.setHeuristic(heuristicPick.getValue());
+            return aStar;
+        }
+        if ("GBFS".equals(selected)) {
+            GBFS g = new GBFS();
+            g.setHeuristic(heuristicPick.getValue());
+            return g;
+        }
+        return new GBFS();
+    }
+
+    private String renderLog(Result result, String iterationLog, String boardOutput, long timeMillis) {
+        StringBuilder res = new StringBuilder();
+        res.append("Found: ").append(result.found).append(System.lineSeparator());
+        res.append("Moves: ").append(result.moves).append(System.lineSeparator());
+        res.append("Total Cost: ").append(result.totalCost).append(System.lineSeparator());
+        res.append("Iterations: ").append(result.iterations).append(System.lineSeparator());
+        res.append("Time: ").append(timeMillis).append(" ms").append(System.lineSeparator());
+        res.append(System.lineSeparator());
+        res.append("Iteration Log").append(System.lineSeparator());
+        res.append(iterationLog.isBlank() ? "-" : iterationLog);
+        res.append(System.lineSeparator());
+        res.append(System.lineSeparator());
+        res.append("Iteration").append(System.lineSeparator());
+        res.append(boardOutput.isBlank() ? "-" : boardOutput);
+        return res.toString();
+    }
+
+    private void updateCellSize() {
+        int availableWidth = sceneWidth - 20;
+        int availableHeight = sceneHeight - 20 - 80;
+        cellSize = Math.max(20, Math.min(availableWidth / board.col, availableHeight / board.row));
+    }
+
+    private Tile nextTile(Tile tile, Direction direction) {
+        if (tile == null) {
+            return null;
+        }
+
+        return switch (direction) {
+            case UP -> tile.nextUp();
+            case DOWN -> tile.nextDown();
+            case LEFT -> tile.nextLeft();
+            case RIGHT -> tile.nextRight();
+        };
+    }
 
     private GridPane createGrid(Board board) {
         GridPane grid = new GridPane();
+        cells = new Rectangle[board.row][board.col];
+
+        for (int r = 0; r < board.row; r++) {
+            for (int c = 0; c < board.col; c++) {
+                Rectangle rect = new Rectangle(cellSize, cellSize, Color.web(backgroundColor(board.tiles[r][c])));
+                Text label = new Text(board.tiles[r][c].order >= 0 ? String.valueOf(board.tiles[r][c].order) : "");
+                label.setFill(Color.BLACK);
+                label.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-fill: black;");
+
+                StackPane cell = new StackPane(rect, label);
+
+                cells[r][c] = rect;
+                grid.add(cell, c, r);
+            }
+        }
+        return grid;
+    }
+
+    private void renderBoard() {
+        if (board == null || cells == null) {
+            return;
+        }
+
         for (int r = 0; r < board.row; r++) {
             for (int c = 0; c < board.col; c++) {
                 Tile tile = board.tiles[r][c];
                 String color = backgroundColor(tile);
-                grid.add(new Rectangle(cellSize, cellSize, Color.web(color)), c, r);
+
+                if (tile == currentTile) {
+                    color = "#ff006e";
+                }
+
+                cells[r][c].setFill(Color.web(color));
             }
         }
-        return grid;
     }
 
     private String backgroundColor(Tile tile) {
@@ -88,6 +456,5 @@ public class App extends Application {
         }
         return "#fffaf2";
     }
-
 
 }
