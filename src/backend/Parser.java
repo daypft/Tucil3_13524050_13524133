@@ -34,16 +34,22 @@ public class Parser {
         int row = Integer.parseInt(size[0]);
         int col = Integer.parseInt(size[1]);
 
+        validateSize(row, col);
+        validateFileLength(lines, row);
+
         Board board = new Board(row, col);
 
         // stores tile order yang ada angkanya simbol
         Map<Integer, Tile> orderedTiles = new HashMap<>();
+        int startCount = 0;
+        int goalCount = 0;
 
         // 0 -> tiles
         // 1 -> tiles ...
 
         for (int r = 0; r < row; r++) {
             String mapLine = lines.get(r + 1);
+            validateMapLine(mapLine, col, r);
 
             for (int c = 0; c < col; c++) {
                 char symbol = mapLine.charAt(c);
@@ -52,12 +58,17 @@ public class Parser {
 
                 if (tile.isStart()) {
                     board.start = tile;
+                    startCount++;
                 } else if (tile.isGoal()) {
                     board.goal = tile;
+                    goalCount++;
                 }
 
                 if (Character.isDigit(symbol)) {
                     int order = Character.getNumericValue(symbol);
+                    if (orderedTiles.containsKey(order)) {
+                        throw new IllegalArgumentException("Duplicate order tile");
+                    }
                     tile.setOrder(order);
                     orderedTiles.put(order, tile);
                     board.maxOrder = Math.max(board.maxOrder, order);
@@ -65,12 +76,20 @@ public class Parser {
             }
         }
 
+        validateTiles(startCount, goalCount);
+        validateOrderSequence(orderedTiles, board.maxOrder);
+
         int startCost = 1 + row;
         for (int r = 0; r < row; r++) {
             String[] cost = lines.get(startCost + r).split("\\s+");
+            validateCostLine(cost, col, r);
 
             for (int c = 0; c < col; c++) {
-                board.tiles[r][c].setCost(Integer.parseInt(cost[c]));
+                try {
+                    board.tiles[r][c].setCost(Integer.parseInt(cost[c]));
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException("Invalid cost at row " + r + ", col " + c);
+                }
             }
         }
 
@@ -91,6 +110,52 @@ public class Parser {
         };
 
         return new Tile(row, col, type);
+    }
+
+    private void validateSize(int row, int col) {
+        if (row <= 0 || col <= 0) {
+            throw new IllegalArgumentException("Board size invalid");
+        }
+    }
+
+    private void validateFileLength(List<String> lines, int row) {
+        int should = 1 + (2 * row);
+        if (lines.size() != should) {
+            throw new IllegalArgumentException("Input must contain " + should + " lines");
+        }
+    }
+
+    private void validateMapLine(String line, int col, int rowIndex) {
+        if (line.length() != col) {
+            throw new IllegalArgumentException("Map row " + (rowIndex + 1) + " has invalid length");
+        }
+    }
+
+    private void validateTiles(int start, int goal) {
+        if (start != 1) {
+            throw new IllegalArgumentException("Board must have 1 start");
+        }
+        if (goal != 1) {
+            throw new IllegalArgumentException("Board must have 1 goal");
+        }
+    }
+
+    private void validateOrderSequence(Map<Integer, Tile> orderedTiles, int maxOrder) {
+        if (orderedTiles.isEmpty()) {
+            return;
+        }
+
+        for (int order = 0; order <= maxOrder; order++) {
+            if (!orderedTiles.containsKey(order)) {
+                throw new IllegalArgumentException("Order tiles invalid");
+            }
+        }
+    }
+
+    private void validateCostLine(String[] cost, int col, int rowIndex) {
+        if (cost.length != col) {
+            throw new IllegalArgumentException("Cost row " + (rowIndex + 1) + " has invalid length");
+        }
     }
 
     private void connectNeighbors(Board board) {

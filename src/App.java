@@ -1,5 +1,5 @@
-import backend.Algorithm;
 import backend.AStar;
+import backend.Algorithm;
 import backend.Board;
 import backend.Board.Direction;
 import backend.GBFS;
@@ -12,23 +12,23 @@ import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.util.Duration;
-import javafx.scene.text.Text;
-import javafx.scene.layout.StackPane;
-import javafx.scene.control.ScrollPane;
-import javafx.scene.layout.HBox;
-import javafx.geometry.Pos;
 
 public class App extends Application {
 
@@ -63,7 +63,7 @@ public class App extends Application {
         try {
             return parser.parseBoard(filePath);
         } catch (Exception e) {
-            e.printStackTrace();
+            printAnythingInOutput(e.getMessage());
             return null;
         }
     }
@@ -191,6 +191,12 @@ public class App extends Application {
         boardScroll.setContent(createGrid(board));
         output.clear();
         renderBoard();
+    }
+
+    private void printAnythingInOutput(String message) {
+        if (output != null) {
+            output.setText(message);
+        }
     }
 
     private Algorithm newAlgo() {
