@@ -106,7 +106,11 @@ public class Parser {
     }
 
     private void connectOrder(Map<Integer, Tile> orderedTiles, Board board) {
+        board.orderTiles = new Tile[board.maxOrder + 1];
+
         for (Map.Entry<Integer, Tile> entry : orderedTiles.entrySet()) {
+            board.orderTiles[entry.getKey()] = entry.getValue();
+
             if (entry.getKey() == 0) {
                 board.firstTargetOrder = entry.getValue();
                 board.firstTargetOrder.setNextOrder(orderedTiles.get(1));

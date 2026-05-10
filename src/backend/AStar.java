@@ -36,7 +36,7 @@ public class AStar extends Algorithm {
     public Result solve(Board board) {
             clearLog();
             PriorityQueue<Node> queue = new PriorityQueue<>();
-            Set<String> visited = new HashSet<>();
+            Set<Board.StateKey> visited = new HashSet<>();
             int iterations = 0;
             Board startBoard = board.copy();
     
@@ -50,7 +50,7 @@ public class AStar extends Algorithm {
                     return new Result(true, current.path, current.cost, iterations);
                 }
     
-                String currentKey = current.BoardCon.stateKey(current.tile);
+                Board.StateKey currentKey = current.BoardCon.stateKey(current.tile);
                 if (visited.contains(currentKey)) continue;
     
                 visited.add(currentKey);

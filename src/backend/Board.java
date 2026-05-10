@@ -1,6 +1,9 @@
 package backend;
 
 public class Board {
+    public record StateKey(int row, int col, int lastPassedOrder) {
+    }
+
     public int row, col;
     public Tile[][] tiles;
     public Tile[] orderTiles;
@@ -183,19 +186,32 @@ public class Board {
         return true;
     }
 
-    public String stateKey(Tile currentTile) {
-        StringBuilder key = new StringBuilder();
-        key.append(currentTile.row).append(',').append(currentTile.col).append(':');
+    public StateKey stateKey(Tile currentTile) {
+        return new StateKey(currentTile.row, currentTile.col, lastPassedOrder());
+    }
+
+    private int lastPassedOrder() {
+        int lastPassedOrder = -1;
+
+        if (orderTiles != null) {
+            for (Tile tile : orderTiles) {
+                if (tile == null || !tile.hasBeenPassed) {
+                    break;
+                }
+                lastPassedOrder = tile.order;
+            }
+            return lastPassedOrder;
+        }
 
         for (int r = 0; r < row; r++) {
             for (int c = 0; c < col; c++) {
                 Tile tile = tiles[r][c];
-                if (tile.order != -1) {
-                    key.append(tile.order).append(tile.hasBeenPassed ? '1' : '0');
+                if (tile.order > lastPassedOrder && tile.hasBeenPassed) {
+                    lastPassedOrder = tile.order;
                 }
             }
         }
 
-        return key.toString();
+        return lastPassedOrder;
     }
 }
