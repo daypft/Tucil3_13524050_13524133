@@ -86,7 +86,11 @@ public class Parser {
 
             for (int c = 0; c < col; c++) {
                 try {
-                    board.tiles[r][c].setCost(Integer.parseInt(cost[c]));
+                    int parsed = Integer.parseInt(cost[c]);
+                    if (parsed < 0) {
+                        throw new IllegalArgumentException("Can't negative cost");
+                    }
+                    board.tiles[r][c].setCost(parsed);
                 } catch (NumberFormatException e) {
                     throw new IllegalArgumentException("Invalid cost at row " + r + ", col " + c);
                 }
